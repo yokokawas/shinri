@@ -2,16 +2,18 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 【修正3】スマホでの意図しないズームを完全に防止 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>直感選択テスト</title>
     <style>
         body { font-family: 'Segoe UI', Meiryo, sans-serif; text-align: center; margin-top: 50px; background-color: #f9f9f9; }
         .container { max-width: 500px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .hidden { display: none; }
-        .btn { padding: 15px 30px; font-size: 18px; margin: 10px; cursor: pointer; border: none; border-radius: 5px; color: white; background-color: #007bff; transition: 0.2s; }
+        
+        /* 【修正3】テキスト選択ハイライトを禁止し、アプリのような挙動にする */
+        .btn { padding: 15px 30px; font-size: 18px; margin: 10px; cursor: pointer; border: none; border-radius: 5px; color: white; background-color: #007bff; transition: 0.2s; user-select: none; touch-action: manipulation; }
         .btn:hover { background-color: #0056b3; }
         
-        /* ボタンサイズのパーセント化と折り返し禁止（極小スマホ対策） */
         .button-container { display: flex; justify-content: center; gap: 10px; flex-wrap: nowrap; }
         .btn-large { font-size: 24px; padding: 20px 0; margin: 10px 0; background-color: #28a745; width: 45%; box-sizing: border-box; }
         .btn-large:hover { background-color: #218838; }
@@ -20,8 +22,8 @@
         .form-group { text-align: left; margin-bottom: 20px; }
         select, input[type="text"] { width: 100%; padding: 10px; margin-top: 5px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
         
-        /* 倫理規定用のスモールテキスト */
         .consent-text { font-size: 12px; color: #666; margin-top: 20px; text-align: left; line-height: 1.4; border-top: 1px solid #ddd; padding-top: 10px; }
+        .warning-text { color: #dc3545; font-weight: bold; margin-top: 10px; font-size: 14px; }
     </style>
 </head>
 <body>
@@ -31,8 +33,8 @@
     <div id="step1">
         <h2>直感テスト</h2>
         <p>あなたは<strong>見知らぬ場所で道に迷っています</strong>。<br>次の画面で、目の前に分かれ道が現れます。<br><strong>3秒以内</strong>に、直感でどちらに進むか選択してください。</p>
+        <p class="warning-text">※テスト中はブラウザの「戻る」や「更新」を押さないでください。</p>
         <button class="btn" onclick="startTest()">テストを開始する</button>
-        <!-- 研究倫理の同意文 -->
         <div class="consent-text">
             ※本調査は大学での研究論文の執筆目的で実施しており、データは完全匿名で処理されます。テストの開始をもって同意とみなします。
         </div>
@@ -51,7 +53,8 @@
     <!-- 画面3：アンケート -->
     <div id="step3" class="hidden">
         <h2>追加アンケート</h2>
-        <form id="surveyForm">
+        <!-- 【修正2】ネイティブ検証を有効にするため formタグのonsubmitを利用 -->
+        <form id="surveyForm" onsubmit="event.preventDefault(); submitData();">
             <div class="form-group">
                 <label>1. あなたの利き手はどちらですか？</label>
                 <select id="dominantHand" required>
@@ -102,7 +105,8 @@
                 </select>
             </div>
 
-            <button type="button" class="btn" onclick="submitData()">回答を送信</button>
+            <!-- 【修正2】type="submit"に変更し、ブラウザの必須チェック機能を作動させる -->
+            <button type="submit" class="btn" id="submitBtn">回答を送信</button>
         </form>
     </div>
 
@@ -115,14 +119,16 @@
 
 <script>
     window.onload = function() {
-        // 完了済み、またはリロードによる「やり直し」をブロック
         if (localStorage.getItem('hxh_survey_completed') || localStorage.getItem('hxh_survey_started')) {
             document.getElementById('step1').innerHTML = "<h2>アクセス済みです</h2><p>このテストは1回しか受けることができません。ご協力ありがとうございました！</p>";
         }
     };
 
     let timerInterval;
-    let startTime; 
+    let startTime;
+    // 【修正1】連打防止用のフラグを追加
+    let isAnswered = false; 
+
     let userResult = {
         direction: "", 
         timeout: 0,
@@ -130,27 +136,27 @@
     };
 
     function startTest() {
-        // テスト開始フラグを立てる（リロード対策）
         localStorage.setItem('hxh_survey_started', 'true');
-
         document.getElementById('step1').classList.add('hidden');
         document.getElementById('step2').classList.remove('hidden');
 
         startTime = performance.now();
         
         timerInterval = setInterval(() => {
-            const elapsed = (performance.now() - startTime) / 1000;
-            const currentTimeLeft = 3.0 - elapsed;
+            // もし既に回答済みなら、以後のタイマー処理は無視する
+            if (isAnswered) return;
+
+            const elapsedSec = (performance.now() - startTime) / 1000;
+            const currentTimeLeft = 3.0 - elapsedSec;
             
-            // 【修正】currentTimeLeft を使って画面を更新
             document.getElementById('timer').innerText = `残り時間: ${Math.max(0, currentTimeLeft).toFixed(1)}秒`;
             
-            // 【修正】currentTimeLeft を使って時間切れを判定
             if (currentTimeLeft <= 0) {
+                isAnswered = true; // 【修正1】ロックをかける
                 clearInterval(timerInterval);
                 userResult.direction = 0; 
                 userResult.timeout = 1;  
-                userResult.rt = 3.000; 
+                userResult.rt = "3.000"; 
                 alert("時間切れです！次の質問にお進みください。");
                 moveToSurvey();
             }
@@ -158,16 +164,20 @@
     }
 
     function selectDirection(dir) {
+        // 【修正1】すでに回答済み（時間切れ、または二度押し）の場合は処理をブロック
+        if (isAnswered) return;
+        isAnswered = true; // 【修正1】ロックをかける
+
         clearInterval(timerInterval);
 
-        // 【追加】すり抜け防止（ボタンを押した時点で3秒を過ぎていないかチェック）
         const endTime = performance.now();
         const elapsedSec = (endTime - startTime) / 1000;
 
+        // すり抜けチェック（念のため）
         if (elapsedSec > 3.0) {
             userResult.direction = 0; 
             userResult.timeout = 1;
-            userResult.rt = 3.000;
+            userResult.rt = "3.000";
             alert("時間切れです！次の質問にお進みください。");
         } else {
             userResult.direction = dir; 
@@ -214,18 +224,13 @@
     }
 
     function submitData() {
+        // ※onsubmit経由で呼ばれるため、空欄チェック（必須チェック）は既にブラウザが完了しています
         const hand = document.getElementById('dominantHand').value;
         const hxh = document.getElementById('readHxH').value;
         const kurapika = document.getElementById('knowsKurapika').value;
         const gender = document.getElementById('gender').value; 
         const age = document.getElementById('age').value;       
 
-        if (!hand || !hxh || !kurapika || !gender || !age) {
-            alert("すべての質問に回答してください。");
-            return;
-        }
-
-        // スマホかPCかを自動判定（スマホ・タブレット=1, PC=0）
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 1 : 0;
 
         const finalData = {
@@ -240,9 +245,9 @@
             device: isMobile
         };
 
-        const submitBtn = document.querySelector('#surveyForm button');
-        submitBtn.disabled = true;
-        submitBtn.innerText = "送信中...";
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.innerText = "送信中...";
 
         const gasURL = "https://script.google.com/macros/s/AKfycbz1n0ZSDy1U_DOAde5YTV8pO_dffOI5rKUHCKMQ1MECb6NKiZ8Y6wW_g7dtnhkJxm0n/exec";
 
@@ -252,7 +257,6 @@
             body: JSON.stringify(finalData)
         })
         .then(response => {
-            // 送信完了したら開始フラグを消して、完了フラグをつける
             localStorage.removeItem('hxh_survey_started');
             localStorage.setItem('hxh_survey_completed', 'true');
             
@@ -261,8 +265,8 @@
         })
         .catch(error => {
             alert("送信に失敗しました。通信環境を確認してください。");
-            submitBtn.disabled = false;
-            submitBtn.innerText = "回答を送信";
+            btn.disabled = false;
+            btn.innerText = "回答を送信";
             console.error(error);
         });
     }
