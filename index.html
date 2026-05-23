@@ -10,11 +10,12 @@
         .hidden { display: none; }
         .btn { padding: 15px 30px; font-size: 18px; margin: 10px; cursor: pointer; border: none; border-radius: 5px; color: white; background-color: #007bff; transition: 0.2s; }
         .btn:hover { background-color: #0056b3; }
-        .btn-large { font-size: 24px; padding: 20px 50px; margin: 20px; background-color: #28a745; }
+        .btn-large { font-size: 24px; padding: 20px 50px; margin: 10px; background-color: #28a745; width: 120px; }
         .btn-large:hover { background-color: #218838; }
         #timer { font-size: 24px; font-weight: bold; color: #dc3545; margin-bottom: 20px; }
         .form-group { text-align: left; margin-bottom: 20px; }
-        select, input[type="text"] { width: 100%; padding: 10px; margin-top: 5px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; }
+        select, input[type="text"] { width: 100%; padding: 10px; margin-top: 5px; font-size: 16px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .button-container { display: flex; justify-content: center; gap: 20px; }
     </style>
 </head>
 <body>
@@ -27,15 +28,17 @@
         <button class="btn" onclick="startTest()">テストを開始する</button>
     </div>
 
-    <!-- 画面2：左右の選択（引数を数値に変更 1=左, 2=右） -->
+    <!-- 画面2：左右の選択 -->
     <div id="step2" class="hidden">
         <div id="timer">残り時間: 3.0秒</div>
         <h2>目の前に分かれ道があります。<br>左右どちらに進みますか？</h2>
-        <button class="btn btn-large" onclick="selectDirection(1)">左</button>
-        <button class="btn btn-large" onclick="selectDirection(2)">右</button>
+        <div class="button-container">
+            <button class="btn btn-large" onclick="selectDirection(1)">左</button>
+            <button class="btn btn-large" onclick="selectDirection(2)">右</button>
+        </div>
     </div>
 
-    <!-- 画面3：アンケート（valueをすべて数値に変更） -->
+    <!-- 画面3：アンケート -->
     <div id="step3" class="hidden">
         <h2>追加アンケート</h2>
         <form id="surveyForm">
@@ -51,22 +54,41 @@
             
             <div class="form-group">
                 <label>2. 漫画『HUNTER×HUNTER』を読んだことがありますか？</label>
-                <select id="readHxH" required onchange="toggleKurapikaQuestion()">
+                <select id="readHxH" required onchange="updateKurapikaOptions()">
                     <option value="">選択してください</option>
                     <option value="1">はい</option>
                     <option value="0">いいえ</option>
                 </select>
             </div>
 
+            <!-- 初期状態では隠しておき、Q2回答後に表示する -->
             <div class="form-group hidden" id="kurapikaWrapper">
-               <label>3. あなたはクラピカ理論を知っていましたか？<br>
-クラピカ理論とは、ハンター試験編でクラピカが語った「人は迷った時、無意識に左を選ぶ習性があるので、逆に右を選んだ方が良い」という理論のことです。</label>
-                <select id="knowsKurapika">
+                <label>3. あなたはクラピカ理論を知っていましたか？<br>
+                クラピカ理論とは、ハンター試験編でクラピカが語った「人は迷った時、無意識に左を選ぶ習性があるので、逆に右を選んだ方が良い」という理論のことです。</label>
+                <!-- 選択肢はJavaScriptで動的に生成 -->
+                <select id="knowsKurapika" required>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>4. あなたの性別を教えてください</label>
+                <select id="gender" required>
                     <option value="">選択してください</option>
-                    <option value="3">はっきりと覚えており、普段の生活でも意識することがある</option>
-                    <option value="2">確かに読んだ記憶があり、内容は知っていた</option>
-                    <option value="1">言われてみれば、そんなセリフがあったような気がする</option>
-                    <option value="0">読んだはずだが、全く覚えていない／知らなかった</option>
+                    <option value="1">男性</option>
+                    <option value="2">女性</option>
+                    <option value="3">その他・答えたくない</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>5. あなたの年齢（年代）を教えてください</label>
+                <select id="age" required>
+                    <option value="">選択してください</option>
+                    <option value="1">10代以下</option>
+                    <option value="2">20代</option>
+                    <option value="3">30代</option>
+                    <option value="4">40代</option>
+                    <option value="5">50代以上</option>
                 </select>
             </div>
 
@@ -91,8 +113,8 @@
     let timeLeft = 3.0;
     let timerInterval;
     let userResult = {
-        direction: "", // 初期値
-        timeout: 0     // SAS用に 1/0 で記録
+        direction: "", 
+        timeout: 0     
     };
 
     function startTest() {
@@ -105,8 +127,8 @@
             
             if (timeLeft <= 0) {
                 clearInterval(timerInterval);
-                userResult.direction = 0; // 時間切れ・未選択は0
-                userResult.timeout = 1;   // 時間切れフラグを立てる(1)
+                userResult.direction = 0; 
+                userResult.timeout = 1;   
                 alert("時間切れです！次の質問にお進みください。");
                 moveToSurvey();
             }
@@ -115,7 +137,7 @@
 
     function selectDirection(dir) {
         clearInterval(timerInterval);
-        userResult.direction = dir; // 1(左) または 2(右) が入る
+        userResult.direction = dir; 
         moveToSurvey();
     }
 
@@ -124,17 +146,35 @@
         document.getElementById('step3').classList.remove('hidden');
     }
 
-    function toggleKurapikaQuestion() {
+    // 読了・未読によって質問3の選択肢テキストを切り替える処理
+    function updateKurapikaOptions() {
         const hxh = document.getElementById('readHxH').value;
         const wrapper = document.getElementById('kurapikaWrapper');
-        // 値が"1"（はい）かどうかの判定に変更
-        if (hxh === "1") {
-            wrapper.classList.remove('hidden');
-            document.getElementById('knowsKurapika').required = true;
-        } else {
+        const kurapikaSelect = document.getElementById('knowsKurapika');
+
+        if (hxh === "") {
             wrapper.classList.add('hidden');
-            document.getElementById('knowsKurapika').required = false;
-            document.getElementById('knowsKurapika').value = "";
+            kurapikaSelect.innerHTML = "";
+            return;
+        }
+
+        wrapper.classList.remove('hidden');
+        kurapikaSelect.innerHTML = '<option value="">選択してください</option>';
+
+        if (hxh === "1") {
+            kurapikaSelect.innerHTML += `
+                <option value="3">原作ではっきりと覚えており、普段の生活でも意識することがある</option>
+                <option value="2">確かに原作で読んだ記憶があり、内容は知っていた</option>
+                <option value="1">言われてみれば、そんなセリフがあったような気がする</option>
+                <option value="0">読んだはずだが、全く覚えていない／知らなかった</option>
+            `;
+        } else if (hxh === "0") {
+            kurapikaSelect.innerHTML += `
+                <option value="3">ネット等でよく見ており、普段の生活でも意識することがある</option>
+                <option value="2">ネットやSNS等で見たことがあり、内容は知っていた</option>
+                <option value="1">言われてみれば、どこかで聞いたことがあるような気がする</option>
+                <option value="0">全く聞いたことがない／知らなかった</option>
+            `;
         }
     }
 
@@ -142,28 +182,29 @@
         const hand = document.getElementById('dominantHand').value;
         const hxh = document.getElementById('readHxH').value;
         const kurapika = document.getElementById('knowsKurapika').value;
+        const gender = document.getElementById('gender').value; 
+        const age = document.getElementById('age').value;       
 
-        // "はい"が"1"になったことに伴う条件式の変更
-        if (!hand || !hxh || (hxh === "1" && !kurapika)) {
+        if (!hand || !hxh || !kurapika || !gender || !age) {
             alert("すべての質問に回答してください。");
             return;
         }
-
-        // SASで扱いやすいように、未回答の空文字("")をSASの欠損値(".")に変換
-        const sasKurapika = kurapika === "" ? "." : kurapika;
 
         const finalData = {
             direction: userResult.direction,
             timeout: userResult.timeout,
             hand: hand,
             hxh: hxh,
-            kurapika: sasKurapika
+            kurapika: kurapika,
+            gender: gender,
+            age: age
         };
 
         const submitBtn = document.querySelector('#surveyForm button');
         submitBtn.disabled = true;
         submitBtn.innerText = "送信中...";
 
+        // ★ご自身のGASのURLをここに貼り付けてください★
         const gasURL = "https://script.google.com/macros/s/AKfycbxfyymcfHCGsVTBM6XUqVNO-eWTn7UtrEaAi2jirqk3vS-GcwTWE1gRX51ACuIoGk4C/exec";
 
         fetch(gasURL, {
