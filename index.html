@@ -32,7 +32,7 @@
         <h2>直感テスト</h2>
         <p>あなたは<strong>見知らぬ場所で道に迷っています</strong>。<br>次の画面で、目の前に分かれ道が現れます。<br><strong>3秒以内</strong>に、直感でどちらに進むか選択してください。</p>
         <button class="btn" onclick="startTest()">テストを開始する</button>
-        <!-- 【追加】研究倫理の同意文 -->
+        <!-- 研究倫理の同意文 -->
         <div class="consent-text">
             ※本調査は大学での研究論文の執筆目的で実施しており、データは完全匿名で処理されます。テストの開始をもって同意とみなします。
         </div>
@@ -115,23 +115,22 @@
 
 <script>
     window.onload = function() {
-        // 【追加】完了済み、またはリロードによる「やり直し」をブロック
+        // 完了済み、またはリロードによる「やり直し」をブロック
         if (localStorage.getItem('hxh_survey_completed') || localStorage.getItem('hxh_survey_started')) {
             document.getElementById('step1').innerHTML = "<h2>アクセス済みです</h2><p>このテストは1回しか受けることができません。ご協力ありがとうございました！</p>";
         }
     };
 
-    let timeLeft = 3.0;
     let timerInterval;
-    let startTime; // 【追加】開始時間を記録する変数
+    let startTime; 
     let userResult = {
         direction: "", 
         timeout: 0,
-        rt: 0 // 【追加】反応時間（Reaction Time）   
+        rt: 0 
     };
 
     function startTest() {
-        // 【追加】テスト開始フラグを立てる（リロード対策）
+        // テスト開始フラグを立てる（リロード対策）
         localStorage.setItem('hxh_survey_started', 'true');
 
         document.getElementById('step1').classList.add('hidden');
@@ -142,13 +141,16 @@
         timerInterval = setInterval(() => {
             const elapsed = (performance.now() - startTime) / 1000;
             const currentTimeLeft = 3.0 - elapsed;
-            document.getElementById('timer').innerText = `残り時間: ${Math.max(0, timeLeft).toFixed(1)}秒`;
             
-            if (timeLeft <= 0) {
+            // 【修正】currentTimeLeft を使って画面を更新
+            document.getElementById('timer').innerText = `残り時間: ${Math.max(0, currentTimeLeft).toFixed(1)}秒`;
+            
+            // 【修正】currentTimeLeft を使って時間切れを判定
+            if (currentTimeLeft <= 0) {
                 clearInterval(timerInterval);
                 userResult.direction = 0; 
                 userResult.timeout = 1;  
-                userResult.rt = 3.000; // 【追加】時間切れの場合は3秒とする 
+                userResult.rt = 3.000; 
                 alert("時間切れです！次の質問にお進みください。");
                 moveToSurvey();
             }
@@ -157,10 +159,20 @@
 
     function selectDirection(dir) {
         clearInterval(timerInterval);
-        userResult.direction = dir; 
 
+        // 【追加】すり抜け防止（ボタンを押した時点で3秒を過ぎていないかチェック）
         const endTime = performance.now();
-        userResult.rt = ((endTime - startTime) / 1000).toFixed(3);
+        const elapsedSec = (endTime - startTime) / 1000;
+
+        if (elapsedSec > 3.0) {
+            userResult.direction = 0; 
+            userResult.timeout = 1;
+            userResult.rt = 3.000;
+            alert("時間切れです！次の質問にお進みください。");
+        } else {
+            userResult.direction = dir; 
+            userResult.rt = elapsedSec.toFixed(3);
+        }
 
         moveToSurvey();
     }
@@ -213,19 +225,19 @@
             return;
         }
 
-        // 【追加】スマホかPCかを自動判定（スマホ・タブレット=1, PC=0）
+        // スマホかPCかを自動判定（スマホ・タブレット=1, PC=0）
         const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) ? 1 : 0;
 
         const finalData = {
             direction: userResult.direction,
             timeout: userResult.timeout,
-            rt: userResult.rt,     // 【追加】反応時間を送信データに含める
+            rt: userResult.rt,
             hand: hand,
             hxh: hxh,
             kurapika: kurapika,
             gender: gender,
             age: age,
-            device: isMobile // 自動取得したデバイス情報を追加
+            device: isMobile
         };
 
         const submitBtn = document.querySelector('#surveyForm button');
