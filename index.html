@@ -27,15 +27,15 @@
         <button class="btn" onclick="startTest()">テストを開始する</button>
     </div>
 
-    <!-- 画面2：左右の選択（時間制限あり） -->
+    <!-- 画面2：左右の選択（引数を数値に変更 1=左, 2=右） -->
     <div id="step2" class="hidden">
         <div id="timer">残り時間: 3.0秒</div>
         <h2>目の前に分かれ道があります。<br>左右どちらに進みますか？</h2>
-        <button class="btn btn-large" onclick="selectDirection('左')">左</button>
-        <button class="btn btn-large" onclick="selectDirection('右')">右</button>
+        <button class="btn btn-large" onclick="selectDirection(1)">左</button>
+        <button class="btn btn-large" onclick="selectDirection(2)">右</button>
     </div>
 
-    <!-- 画面3：アンケート（戻れない） -->
+    <!-- 画面3：アンケート（valueをすべて数値に変更） -->
     <div id="step3" class="hidden">
         <h2>追加アンケート</h2>
         <form id="surveyForm">
@@ -43,9 +43,9 @@
                 <label>1. あなたの利き手はどちらですか？</label>
                 <select id="dominantHand" required>
                     <option value="">選択してください</option>
-                    <option value="右">右</option>
-                    <option value="左">左</option>
-                    <option value="両利き">両利き</option>
+                    <option value="1">右</option>
+                    <option value="2">左</option>
+                    <option value="3">両利き</option>
                 </select>
             </div>
             
@@ -53,8 +53,8 @@
                 <label>2. 漫画『HUNTER×HUNTER』を読んだことがありますか？</label>
                 <select id="readHxH" required onchange="toggleKurapikaQuestion()">
                     <option value="">選択してください</option>
-                    <option value="はい">はい</option>
-                    <option value="いいえ">いいえ</option>
+                    <option value="1">はい</option>
+                    <option value="0">いいえ</option>
                 </select>
             </div>
 
@@ -81,7 +81,6 @@
 </div>
 
 <script>
-    // 【追加部分】ページが開かれたときに過去の回答歴をチェックする
     window.onload = function() {
         if (localStorage.getItem('hxh_survey_completed')) {
             document.getElementById('step1').innerHTML = "<h2>回答済みです</h2><p>すでにご協力いただいております。ありがとうございました！</p>";
@@ -91,8 +90,8 @@
     let timeLeft = 3.0;
     let timerInterval;
     let userResult = {
-        direction: "",
-        timeout: false
+        direction: "", // 初期値
+        timeout: 0     // SAS用に 1/0 で記録
     };
 
     function startTest() {
@@ -105,8 +104,8 @@
             
             if (timeLeft <= 0) {
                 clearInterval(timerInterval);
-                userResult.direction = "未選択";
-                userResult.timeout = true;
+                userResult.direction = 0; // 時間切れ・未選択は0
+                userResult.timeout = 1;   // 時間切れフラグを立てる(1)
                 alert("時間切れです！次の質問にお進みください。");
                 moveToSurvey();
             }
@@ -115,7 +114,7 @@
 
     function selectDirection(dir) {
         clearInterval(timerInterval);
-        userResult.direction = dir;
+        userResult.direction = dir; // 1(左) または 2(右) が入る
         moveToSurvey();
     }
 
@@ -127,7 +126,8 @@
     function toggleKurapikaQuestion() {
         const hxh = document.getElementById('readHxH').value;
         const wrapper = document.getElementById('kurapikaWrapper');
-        if (hxh === "はい") {
+        // 値が"1"（はい）かどうかの判定に変更
+        if (hxh === "1") {
             wrapper.classList.remove('hidden');
             document.getElementById('knowsKurapika').required = true;
         } else {
@@ -142,24 +142,27 @@
         const hxh = document.getElementById('readHxH').value;
         const kurapika = document.getElementById('knowsKurapika').value;
 
-        if (!hand || !hxh || (hxh === "はい" && !kurapika)) {
+        // "はい"が"1"になったことに伴う条件式の変更
+        if (!hand || !hxh || (hxh === "1" && !kurapika)) {
             alert("すべての質問に回答してください。");
             return;
         }
+
+        // SASで扱いやすいように、未回答の空文字("")をSASの欠損値(".")に変換
+        const sasKurapika = kurapika === "" ? "." : kurapika;
 
         const finalData = {
             direction: userResult.direction,
             timeout: userResult.timeout,
             hand: hand,
             hxh: hxh,
-            kurapika: kurapika
+            kurapika: sasKurapika
         };
 
         const submitBtn = document.querySelector('#surveyForm button');
         submitBtn.disabled = true;
         submitBtn.innerText = "送信中...";
 
-        // ★ご自身のGASのURLをここに貼り付けてください★
         const gasURL = "https://script.google.com/macros/s/AKfycbxfyymcfHCGsVTBM6XUqVNO-eWTn7UtrEaAi2jirqk3vS-GcwTWE1gRX51ACuIoGk4C/exec";
 
         fetch(gasURL, {
@@ -168,7 +171,6 @@
             body: JSON.stringify(finalData)
         })
         .then(response => {
-            // 【追加部分】送信成功時に、ブラウザに「回答完了」の目印を保存する
             localStorage.setItem('hxh_survey_completed', 'true');
             
             document.getElementById('step3').classList.add('hidden');
