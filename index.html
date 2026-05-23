@@ -137,7 +137,7 @@
         document.getElementById('step1').classList.add('hidden');
         document.getElementById('step2').classList.remove('hidden');
 
-        startTime = Date.now();
+        startTime = performance.now();
         
         timerInterval = setInterval(() => {
             timeLeft -= 0.1;
@@ -158,7 +158,7 @@
         clearInterval(timerInterval);
         userResult.direction = dir; 
 
-        const endTime = Date.now();
+        const endTime = performance.now();
         userResult.rt = ((endTime - startTime) / 1000).toFixed(3);
 
         moveToSurvey();
